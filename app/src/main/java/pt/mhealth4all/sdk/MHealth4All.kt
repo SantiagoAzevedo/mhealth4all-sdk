@@ -14,10 +14,14 @@ import java.util.UUID
 
 class MHealth4All private constructor(
     private val context: Context,
-    private val serverUrl: String
+    private val serverUrl: String,
+    private val encryptionEnabled: Boolean
 ) {
-    private val db = LocalDatabase.getInstance(context)
+    private val db = LocalDatabase.getInstance(context, encryptionEnabled)
     private val scope = CoroutineScope(Dispatchers.IO)
+
+    // Indica se a base de dados está encriptada
+    fun isEncrypted(): Boolean = encryptionEnabled
 
     // Carrega um questionário pelo ID
     fun loadQuestionnaire(id: String): List<Question> {
@@ -47,7 +51,7 @@ class MHealth4All private constructor(
                     answers = answers
                 )
 
-                // Guarda na base de dados local
+                // Guarda na base de dados local (encriptada ou não)
                 db.responseDao().insert(
                     ResponseEntity(
                         id = UUID.randomUUID().toString(),
@@ -76,7 +80,6 @@ class MHealth4All private constructor(
             var count = 0
             pending.forEach { entity ->
                 // Futuramente: POST real para o serverUrl
-                // Por agora simula sucesso
                 db.responseDao().markSynced(entity.id)
                 count++
             }
@@ -87,9 +90,11 @@ class MHealth4All private constructor(
     // Builder
     class Builder(private val context: Context) {
         private var serverUrl: String = ""
+        private var encryptionEnabled: Boolean = true  // activo por defeito
 
         fun serverUrl(url: String) = apply { this.serverUrl = url }
+        fun enableEncryption(enabled: Boolean) = apply { this.encryptionEnabled = enabled }
 
-        fun build() = MHealth4All(context, serverUrl)
+        fun build() = MHealth4All(context, serverUrl, encryptionEnabled)
     }
 }
