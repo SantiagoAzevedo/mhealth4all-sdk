@@ -22,6 +22,15 @@ android {
         jvmTarget = "17"
     }
 
+    defaultConfig {
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.schemaLocation"] = "$projectDir/schemas"
+                arguments["room.exportSchema"] = "false"
+            }
+        }
+    }
+
     publishing {
         singleVariant("release") {
             withSourcesJar()
