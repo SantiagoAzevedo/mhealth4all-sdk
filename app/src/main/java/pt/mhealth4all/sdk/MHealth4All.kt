@@ -10,6 +10,7 @@ import pt.mhealth4all.sdk.models.QuestionType
 import pt.mhealth4all.sdk.models.QuestionnaireResponse
 import pt.mhealth4all.sdk.storage.LocalDatabase
 import pt.mhealth4all.sdk.storage.ResponseEntity
+import pt.mhealth4all.sdk.sync.FhirSyncService
 import java.util.UUID
 
 class MHealth4All private constructor(
@@ -18,9 +19,9 @@ class MHealth4All private constructor(
     private val encryptionEnabled: Boolean
 ) {
     private val db = LocalDatabase.getInstance(context, encryptionEnabled)
+    private val syncService = FhirSyncService(serverUrl)
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Indica se a base de dados está encriptada
     fun isEncrypted(): Boolean = encryptionEnabled
 
     // Carrega um questionário pelo ID
@@ -51,20 +52,22 @@ class MHealth4All private constructor(
                     answers = answers
                 )
 
-                // Guarda na base de dados local (encriptada ou não)
+                // Converte para FHIR
+                val fhirJson = FhirMapper.toFhirJson(response)
+
+                // Guarda localmente com o JSON FHIR já gerado
                 db.responseDao().insert(
                     ResponseEntity(
                         id = UUID.randomUUID().toString(),
                         questionnaireId = response.questionnaireId,
                         patientId = response.patientId,
                         answersJson = answers.toString(),
+                        fhirJson = fhirJson,
                         timestamp = response.timestamp,
                         synced = false
                     )
                 )
 
-                // Converte para FHIR
-                val fhirJson = FhirMapper.toFhirJson(response)
                 onSuccess(fhirJson)
 
             } catch (e: Exception) {
@@ -73,24 +76,35 @@ class MHealth4All private constructor(
         }
     }
 
-    // Sincroniza respostas pendentes com o servidor
+    // Sincroniza respostas pendentes com o servidor FHIR real
     fun syncPending(onComplete: (syncedCount: Int) -> Unit) {
         scope.launch {
             val pending = db.responseDao().getPending()
             var count = 0
+
             pending.forEach { entity ->
-                // Futuramente: POST real para o serverUrl
-                db.responseDao().markSynced(entity.id)
-                count++
+                // POST real para o servidor FHIR
+                val success = syncService.postResource(
+                    resourceType = "QuestionnaireResponse",
+                    fhirJson = entity.fhirJson
+                )
+
+                if (success) {
+                    db.responseDao().markSynced(entity.id)
+                    count++
+                } else {
+                    // Mantém synced = false para tentar novamente
+                    db.responseDao().markFailed(entity.id)
+                }
             }
+
             onComplete(count)
         }
     }
 
-    // Builder
     class Builder(private val context: Context) {
         private var serverUrl: String = ""
-        private var encryptionEnabled: Boolean = true  // activo por defeito
+        private var encryptionEnabled: Boolean = true
 
         fun serverUrl(url: String) = apply { this.serverUrl = url }
         fun enableEncryption(enabled: Boolean) = apply { this.encryptionEnabled = enabled }

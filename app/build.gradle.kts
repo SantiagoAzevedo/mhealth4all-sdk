@@ -11,6 +11,11 @@ android {
 
     defaultConfig {
         minSdk = 26
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.exportSchema"] = "false"
+            }
+        }
     }
 
     compileOptions {
@@ -20,15 +25,6 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-    }
-
-    defaultConfig {
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments["room.schemaLocation"] = "$projectDir/schemas"
-                arguments["room.exportSchema"] = "false"
-            }
-        }
     }
 
     publishing {
@@ -56,7 +52,9 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
-
     implementation("net.zetetic:android-database-sqlcipher:4.5.4")
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+
+    // HTTP para enviar para o servidor FHIR
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

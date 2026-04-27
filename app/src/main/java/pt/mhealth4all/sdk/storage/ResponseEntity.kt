@@ -9,6 +9,7 @@ data class ResponseEntity(
     val questionnaireId: String,
     val patientId: String,
     val answersJson: String,
+    val fhirJson: String,       // ← JSON FHIR pronto a enviar
     val timestamp: Long,
     val synced: Boolean = false
 )

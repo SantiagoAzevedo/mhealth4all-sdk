@@ -14,6 +14,9 @@ interface ResponseDao {
     @Query("UPDATE responses SET synced = 1 WHERE id = :id")
     suspend fun markSynced(id: String)
 
+    @Query("UPDATE responses SET synced = 0 WHERE id = :id")
+    suspend fun markFailed(id: String)
+
     @Query("SELECT * FROM responses")
     suspend fun getAll(): List<ResponseEntity>
 }
